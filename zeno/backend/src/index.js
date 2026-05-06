@@ -5,6 +5,7 @@ import authRouter from './routes/auth.js'
 import customersRouter from './routes/customers.js'
 import productsRouter from './routes/products.js'
 import salesRouter from './routes/sales.js'
+import dashboardRouter from './routes/dashboard.js'
 import errorHandler from './middleware/errorHandler.js'
 
 const app = express()
@@ -24,6 +25,7 @@ app.use('/api/v1/auth', authRouter)
 app.use('/api/v1/customers', customersRouter)
 app.use('/api/v1/products', productsRouter)
 app.use('/api/v1/sales', salesRouter)
+app.use('/api/v1/dashboard', dashboardRouter)
 
 app.use(errorHandler)
 

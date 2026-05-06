@@ -1,0 +1,10 @@
+---
+import Layout from '../layouts/Layout.astro'
+import Navbar from '../components/Navbar.astro'
+import DashboardIsland from '../islands/DashboardIsland.jsx'
+---
+
+<Layout title="Dashboard">
+  <Navbar />
+  <DashboardIsland client:load />
+</Layout>
