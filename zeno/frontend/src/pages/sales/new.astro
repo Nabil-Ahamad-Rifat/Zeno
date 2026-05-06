@@ -1,0 +1,10 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import Navbar from '../../components/Navbar.astro'
+import NewSaleIsland from '../../islands/NewSaleIsland.jsx'
+---
+
+<Layout title="New Sale">
+  <Navbar />
+  <NewSaleIsland client:load />
+</Layout>

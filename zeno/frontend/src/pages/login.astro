@@ -1,0 +1,8 @@
+---
+import Layout from '../layouts/Layout.astro'
+import LoginIsland from '../islands/LoginIsland.jsx'
+---
+
+<Layout protect={false} title="Login">
+  <LoginIsland client:load />
+</Layout>

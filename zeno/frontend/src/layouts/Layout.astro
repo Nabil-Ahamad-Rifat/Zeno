@@ -1,0 +1,24 @@
+---
+import '../styles/index.css'
+
+const { title = 'ASTRA', protect = true } = Astro.props
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width" />
+  <title>{title} — ASTRA</title>
+</head>
+<body class="min-h-screen bg-gray-50">
+  {protect && (
+    <script>
+      if (!localStorage.getItem('token')) {
+        window.location.href = '/login'
+      }
+    </script>
+  )}
+  <slot />
+</body>
+</html>

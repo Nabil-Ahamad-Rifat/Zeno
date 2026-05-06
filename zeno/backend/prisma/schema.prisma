@@ -1,0 +1,98 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum CustomerTag {
+  new
+  regular
+  vip
+}
+
+model Customer {
+  id        Int     @id @default(autoincrement())
+  name      String
+  phone     String  @unique
+  email     String? @unique
+  address   String?
+  tag       CustomerTag @default(new)
+  createdAt DateTime @default(now())
+  sales     Sale[]
+
+  @@map("customers")
+}
+
+model Product {
+  id             Int     @id @default(autoincrement())
+  name           String
+  category       String
+  unit           String
+  price          Decimal @db.Decimal(10, 2)
+  costPrice      Decimal @db.Decimal(10, 2)
+  stockQty       Int     @default(0)
+  minStock       Int     @default(0)
+  expiryDate     DateTime?
+  createdAt      DateTime @default(now())
+  saleItems      SaleItem[]
+  stockMovements StockMovement[]
+
+  @@map("products")
+}
+
+model Sale {
+  id            Int         @id @default(autoincrement())
+  customerId    Int?
+  customer      Customer?   @relation(fields: [customerId], references: [id])
+  totalAmount   Decimal     @db.Decimal(10, 2)
+  discount      Decimal     @db.Decimal(10, 2) @default(0)
+  memoId        String      @unique
+  feedbackToken String      @unique
+  emailSent     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  items         SaleItem[]
+  feedback      Feedback?
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id        Int     @id @default(autoincrement())
+  saleId    Int
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  @@map("sale_items")
+}
+
+model StockMovement {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id])
+  changeQty Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@map("stock_movements")
+}
+
+model Feedback {
+  id        Int      @id @default(autoincrement())
+  saleId    Int      @unique
+  sale      Sale     @relation(fields: [saleId], references: [id])
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@map("feedback")
+}

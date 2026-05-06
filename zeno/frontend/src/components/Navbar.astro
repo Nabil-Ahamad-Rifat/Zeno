@@ -1,0 +1,44 @@
+---
+import { logout } from '../stores/auth.js'
+
+const links = [
+  { href: '/customers', label: 'Customers' },
+  { href: '/products', label: 'Products' },
+  { href: '/sales/new', label: 'New Sale' },
+  { href: '/sales', label: 'History' },
+]
+const current = Astro.url.pathname
+---
+
+<nav class="bg-blue-600 text-white shadow-md">
+  <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+    <h1 class="text-2xl font-bold">ASTRA</h1>
+    <div class="flex items-center gap-1">
+      {links.map(link => (
+        <a
+          href={link.href}
+          class={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+            current.startsWith(link.href) && (current === link.href || link.href !== '/sales/new')
+              ? 'bg-blue-800 text-white'
+              : 'text-blue-100 hover:bg-blue-700 hover:text-white'
+          }`}
+        >
+          {link.label}
+        </a>
+      ))}
+    </div>
+    <button
+      id="logout-btn"
+      class="px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded text-sm"
+    >
+      Logout
+    </button>
+  </div>
+</nav>
+
+<script define:vars={{ logout }}>
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    localStorage.removeItem('token')
+    window.location.href = '/login'
+  })
+</script>

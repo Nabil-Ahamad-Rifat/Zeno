@@ -1,0 +1,16 @@
+import { z } from 'zod'
+
+const saleSchema = z.object({
+  customerId: z.coerce.number().int().positive().optional(),
+  discount: z.coerce.number().nonnegative().optional().default(0),
+  items: z
+    .array(
+      z.object({
+        productId: z.coerce.number().int().positive(),
+        quantity: z.coerce.number().int().positive(),
+      })
+    )
+    .min(1, 'At least one item is required'),
+})
+
+export default saleSchema
