@@ -1,10 +1,27 @@
 import PDFDocument from 'pdfkit'
 
+const formatCurrency = (value) => `৳${Number(value).toFixed(2)}`
+
+const drawTableRow = (doc, data, widths, startX, y, isHeader = false) => {
+  const font = isHeader ? 'Helvetica-Bold' : 'Helvetica'
+  const fontSize = isHeader ? 9 : 8
+  doc.font(font).fontSize(fontSize)
+
+  let xPos = startX
+  data.forEach((cell, idx) => {
+    const width = widths[idx]
+    const align = idx === 0 ? 'left' : idx > 1 ? 'right' : 'center'
+    doc.text(String(cell), xPos, y, { width, align, height: 30, valign: 'center' })
+    xPos += width
+  })
+}
+
 export const generateMemoPDF = async (sale, shopName) => {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: 'A4',
-      margin: 40,
+      margin: 30,
+      bufferPages: true,
     })
 
     const chunks = []
@@ -12,97 +29,147 @@ export const generateMemoPDF = async (sale, shopName) => {
     doc.on('end', () => resolve(Buffer.concat(chunks)))
     doc.on('error', reject)
 
-    // Header
-    doc.fontSize(24).font('Helvetica-Bold').text(shopName, { align: 'center' })
-    doc.moveDown(0.3)
-    doc.fontSize(10).font('Helvetica').text('Sales Invoice', { align: 'center' })
-    doc.moveDown(1)
+    const pageWidth = doc.page.width
+    const leftMargin = 30
+    const rightMargin = 30
+    const contentWidth = pageWidth - leftMargin - rightMargin
 
-    // Memo ID and Date
-    doc.fontSize(10)
-    doc.text(`Memo ID: ${sale.memoId}`, 40, doc.y)
-    doc.text(`Date: ${new Date(sale.createdAt).toLocaleDateString()}`, 40, doc.y)
-    doc.text(`Time: ${new Date(sale.createdAt).toLocaleTimeString()}`, 40, doc.y)
+    // Header
+    doc.fontSize(20).font('Helvetica-Bold').text(shopName, { align: 'center' })
+    doc.fontSize(9).font('Helvetica').text('Sales Invoice / Memo', { align: 'center' })
+    doc.moveTo(leftMargin, doc.y).lineTo(pageWidth - rightMargin, doc.y).stroke()
     doc.moveDown(0.5)
 
-    // Customer Info
-    doc.font('Helvetica-Bold').fontSize(10).text('Customer Information')
-    doc.font('Helvetica').fontSize(9)
+    // Two-column layout: Memo Info | Customer Info
+    const col1X = leftMargin
+    const col2X = leftMargin + contentWidth / 2
+
+    doc.fontSize(9).font('Helvetica-Bold').text('Memo Information', col1X, doc.y, { width: contentWidth / 2 - 10 })
+    doc.fontSize(9).font('Helvetica-Bold').text('Customer Information', col2X, doc.y, { width: contentWidth / 2 - 10 })
+
+    const memoInfoY = doc.y
+    doc.fontSize(8).font('Helvetica')
+
+    doc.text(`ID: ${sale.memoId}`, col1X, memoInfoY, { width: contentWidth / 2 - 10 })
+    doc.text(`Date: ${new Date(sale.createdAt).toLocaleDateString('en-GB')}`, col1X, doc.y, { width: contentWidth / 2 - 10 })
+    doc.text(`Time: ${new Date(sale.createdAt).toLocaleTimeString()}`, col1X, doc.y, { width: contentWidth / 2 - 10 })
+
+    const customerY = memoInfoY
     if (sale.customer) {
-      doc.text(`Name: ${sale.customer.name}`)
-      doc.text(`Phone: ${sale.customer.phone}`)
-      if (sale.customer.email) doc.text(`Email: ${sale.customer.email}`)
+      doc.text(`Name: ${sale.customer.name}`, col2X, customerY, { width: contentWidth / 2 - 10 })
+      doc.text(`Phone: ${sale.customer.phone}`, col2X, doc.y, { width: contentWidth / 2 - 10 })
+      if (sale.customer.email) {
+        doc.text(`Email: ${sale.customer.email}`, col2X, doc.y, { width: contentWidth / 2 - 10 })
+      }
     } else {
-      doc.text('Name: Walk-in Customer')
+      doc.text('Name: Walk-in Customer', col2X, customerY, { width: contentWidth / 2 - 10 })
     }
+
     doc.moveDown(1)
+    doc.moveTo(leftMargin, doc.y).lineTo(pageWidth - rightMargin, doc.y).stroke()
+    doc.moveDown(0.5)
 
     // Items Table
-    doc.font('Helvetica-Bold').fontSize(10).text('Items')
-    doc.moveDown(0.3)
-
     const tableTop = doc.y
-    const col1 = 50
-    const col2 = 250
-    const col3 = 320
-    const col4 = 380
-    const col5 = 480
+    const tableX = leftMargin
+    const colWidths = [contentWidth * 0.4, contentWidth * 0.15, contentWidth * 0.15, contentWidth * 0.15, contentWidth * 0.15]
 
-    // Table Headers
-    doc.font('Helvetica-Bold').fontSize(9)
-    doc.text('Product', col1, tableTop)
-    doc.text('Unit', col2, tableTop)
-    doc.text('Qty', col3, tableTop)
-    doc.text('Price', col4, tableTop)
-    doc.text('Subtotal', col5, tableTop)
+    // Table Header
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#000')
+    drawTableRow(
+      doc,
+      ['Product', 'Unit', 'Qty', 'Unit Price', 'Subtotal'],
+      colWidths,
+      tableX,
+      doc.y,
+      true
+    )
 
-    // Separator line
-    doc.moveTo(40, tableTop + 15).lineTo(560, tableTop + 15).stroke()
+    doc.moveTo(tableX, doc.y - 5).lineTo(pageWidth - rightMargin, doc.y - 5).stroke()
     doc.moveDown(0.8)
 
-    // Table Data
-    doc.font('Helvetica').fontSize(9)
+    // Table Rows
+    doc.font('Helvetica').fontSize(8)
     sale.items.forEach((item) => {
-      const y = doc.y
-      doc.text(item.product.name, col1, y, { width: 190 })
-      doc.text(item.product.unit, col2, y)
-      doc.text(item.quantity.toString(), col3, y)
-      doc.text(`৳${Number(item.unitPrice).toFixed(2)}`, col4, y)
-      doc.text(`৳${Number(item.subtotal).toFixed(2)}`, col5, y)
-      doc.moveDown(0.6)
+      const rowY = doc.y
+      const productName = String(item.product.name).substring(0, 40)
+      doc.text(productName, tableX, rowY, { width: colWidths[0], height: 25, valign: 'center' })
+      doc.text(String(item.product.unit), tableX + colWidths[0], rowY, {
+        width: colWidths[1],
+        align: 'center',
+        height: 25,
+        valign: 'center',
+      })
+      doc.text(String(item.quantity), tableX + colWidths[0] + colWidths[1], rowY, {
+        width: colWidths[2],
+        align: 'center',
+        height: 25,
+        valign: 'center',
+      })
+      doc.text(formatCurrency(item.unitPrice), tableX + colWidths[0] + colWidths[1] + colWidths[2], rowY, {
+        width: colWidths[3],
+        align: 'right',
+        height: 25,
+        valign: 'center',
+      })
+      doc.text(formatCurrency(item.subtotal), tableX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], rowY, {
+        width: colWidths[4],
+        align: 'right',
+        height: 25,
+        valign: 'center',
+      })
+      doc.moveDown(1.5)
     })
 
-    // Separator line
-    doc.moveTo(40, doc.y).lineTo(560, doc.y).stroke()
-    doc.moveDown(0.5)
+    // Total Section
+    doc.moveTo(tableX, doc.y).lineTo(pageWidth - rightMargin, doc.y).stroke()
+    doc.moveDown(0.3)
 
-    // Totals
-    doc.font('Helvetica').fontSize(10)
-    const subtotal = sale.items.reduce(
-      (sum, item) => sum + Number(item.subtotal),
-      0
-    )
-    doc.text(`Subtotal: ৳${subtotal.toFixed(2)}`, col4, doc.y, { align: 'right', width: 80 })
+    const subtotal = sale.items.reduce((sum, item) => sum + Number(item.subtotal), 0)
+    const totalX = tableX + colWidths[0] + colWidths[1] + colWidths[2]
+
+    doc.font('Helvetica').fontSize(9)
+    doc.text('Subtotal:', totalX, doc.y, { width: colWidths[3], align: 'right' })
+    doc.text(formatCurrency(subtotal), totalX + colWidths[3], doc.y, { width: colWidths[4], align: 'right' })
     doc.moveDown(0.4)
 
     if (Number(sale.discount) > 0) {
-      doc.text(`Discount: -৳${Number(sale.discount).toFixed(2)}`, col4, doc.y, { align: 'right', width: 80 })
+      doc.fillColor('#d32f2f')
+      doc.text('Discount:', totalX, doc.y, { width: colWidths[3], align: 'right' })
+      doc.text(`-${formatCurrency(sale.discount)}`, totalX + colWidths[3], doc.y, {
+        width: colWidths[4],
+        align: 'right',
+      })
+      doc.fillColor('#000')
       doc.moveDown(0.4)
     }
 
     doc.font('Helvetica-Bold').fontSize(11)
-    doc.text(`Total: ৳${Number(sale.totalAmount).toFixed(2)}`, col4, doc.y, { align: 'right', width: 80 })
-    doc.moveDown(2)
+    doc.text('TOTAL:', totalX, doc.y, { width: colWidths[3], align: 'right' })
+    doc.text(formatCurrency(sale.totalAmount), totalX + colWidths[3], doc.y, {
+      width: colWidths[4],
+      align: 'right',
+    })
+    doc.moveDown(1.5)
 
-    // Feedback section
-    doc.font('Helvetica').fontSize(9).text('Thank you for your business!', { align: 'center' })
+    // Footer
+    doc.moveTo(leftMargin, doc.y).lineTo(pageWidth - rightMargin, doc.y).stroke()
+    doc.moveDown(0.5)
+
+    doc.font('Helvetica').fontSize(8).fillColor('#666')
+    doc.text('Thank you for your business!', { align: 'center' })
+
     if (sale.feedbackToken) {
-      doc.fontSize(8).fillColor('#0066CC')
-      doc.text(`Feedback: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/feedback/${sale.feedbackToken}`, {
-        align: 'center',
-        underline: true,
-      })
+      doc.fillColor('#0066CC').fontSize(7)
+      doc.text(
+        `Feedback: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/feedback/${sale.feedbackToken}`,
+        { align: 'center', link: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/feedback/${sale.feedbackToken}` }
+      )
     }
+
+    doc.moveDown(0.3)
+    doc.fillColor('#999').fontSize(7)
+    doc.text(`Generated on ${new Date().toLocaleString('en-GB')}`, { align: 'center' })
 
     doc.end()
   })
