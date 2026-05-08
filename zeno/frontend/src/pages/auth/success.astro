@@ -1,0 +1,50 @@
+---
+import Layout from '../../layouts/Layout.astro'
+---
+
+<Layout protect={false} title="Signing in">
+  <div class="flex items-center justify-center min-h-screen bg-gray-100">
+    <p class="text-gray-500 text-sm">Signing you in…</p>
+  </div>
+  <script>
+    const API = import.meta.env.PUBLIC_API_URL
+
+    fetch(`${API}/api/v1/auth/me`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.user) {
+          if (window.opener) {
+            window.opener.postMessage(
+              { type: 'oauth-success', user: data.user },
+              window.location.origin
+            )
+            window.close()
+          } else {
+            localStorage.setItem('user', JSON.stringify(data.user))
+            window.location.href = '/dashboard'
+          }
+        } else {
+          if (window.opener) {
+            window.opener.postMessage(
+              { type: 'oauth-error', message: 'Login failed' },
+              window.location.origin
+            )
+            window.close()
+          } else {
+            window.location.href = '/login?error=oauth_failed'
+          }
+        }
+      })
+      .catch(() => {
+        if (window.opener) {
+          window.opener.postMessage(
+            { type: 'oauth-error', message: 'Login failed' },
+            window.location.origin
+          )
+          window.close()
+        } else {
+          window.location.href = '/login?error=oauth_failed'
+        }
+      })
+  </script>
+</Layout>

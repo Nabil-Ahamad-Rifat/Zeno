@@ -1,119 +1,94 @@
+import mongoose from 'mongoose'
 import crypto from 'crypto'
-import prisma from '../utils/prisma.js'
+import Sale from '../models/Sale.js'
+import Product from '../models/Product.js'
+import StockMovement from '../models/StockMovement.js'
 import { sendMemoEmail } from '../services/emailService.js'
 import { generateMemoPDF } from '../services/memoService.js'
+import { linkSaleToCustomerUser } from '../services/customerService.js'
 
 const createSale = async (req, res, next) => {
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Validate stock for every item sequentially
+    if (!req.user) return next({ status: 401, message: 'Not authenticated' })
+    if (req.user.role === 'shopkeeper' && !req.user.shopId) return next({ status: 403, message: 'SHOP_REQUIRED' })
+
+    const shopId = req.user.shopId || req.body.shopId
+    const sellerId = req.user.role === 'seller' ? req.user.userId : null
+    const { items, discount = 0, customerId } = req.body
+
+    if (!items || items.length === 0) return next({ status: 400, message: 'Items are required' })
+
+    const session = await mongoose.startSession()
+    session.startTransaction()
+
+    let result
+    try {
       const productSnapshots = []
-      for (const item of req.body.items) {
-        const product = await tx.product.findUnique({
-          where: { id: item.productId },
-        })
-        if (!product) {
-          throw {
-            status: 404,
-            message: `Product with id ${item.productId} not found`,
-          }
-        }
-        if (product.stockQty < item.quantity) {
-          throw {
-            status: 400,
-            message: `Insufficient stock for ${product.name}: need ${item.quantity}, have ${product.stockQty}`,
-          }
-        }
+      for (const item of items) {
+        const product = await Product.findById(item.productId).session(session)
+        if (!product) throw { status: 404, message: `Product ${item.productId} not found` }
+        if (req.user.role !== 'admin' && product.shopId.toString() !== shopId) throw { status: 403, message: 'Access denied to product' }
+        if (product.stockQty < item.quantity) throw { status: 400, message: `Insufficient stock for ${product.name}: need ${item.quantity}, have ${product.stockQty}` }
         productSnapshots.push({ product, quantity: item.quantity })
       }
 
-      // 2. Calculate financials
-      const discount = req.body.discount ?? 0
-      const itemsData = productSnapshots.map(({ product, quantity }) => ({
-        productId: product.id,
+      const discountAmount = parseFloat(discount) || 0
+      const saleItems = productSnapshots.map(({ product, quantity }) => ({
+        productId: product._id,
+        productName: product.name,
+        productCategory: product.category,
+        productUnit: product.unit,
+        costPrice: product.costPrice,
         quantity,
         unitPrice: product.price,
-        subtotal: parseFloat(product.price) * quantity,
+        subtotal: product.price * quantity,
       }))
-      const totalAmount = itemsData.reduce((sum, i) => sum + i.subtotal, 0) - discount
+      const totalAmount = saleItems.reduce((sum, i) => sum + i.subtotal, 0) - discountAmount
 
-      // 3. Create Sale with temp unique placeholders
-      const tempId = crypto.randomUUID()
-      const sale = await tx.sale.create({
-        data: {
-          customerId: req.body.customerId ?? null,
-          totalAmount,
-          discount,
-          memoId: `TEMP-${tempId}`,
-          feedbackToken: `TEMP-${tempId}-fb`,
-        },
-      })
-
-      // 4. Update with final memoId + feedbackToken
+      // Generate unique memo/feedback IDs
       const year = new Date().getFullYear()
-      const memoId = `ASTRA-${year}-${String(sale.id).padStart(4, '0')}`
+      const count = await Sale.countDocuments({ shopId }).session(session)
+      const memoId = `ZENO-${year}-${String(count + 1).padStart(4, '0')}`
       const feedbackToken = crypto.randomBytes(8).toString('hex')
-      await tx.sale.update({
-        where: { id: sale.id },
-        data: { memoId, feedbackToken },
-      })
 
-      // 5. Create SaleItems
-      for (const item of itemsData) {
-        await tx.saleItem.create({
-          data: {
-            saleId: sale.id,
-            ...item,
-          },
-        })
-      }
+      ;[result] = await Sale.create(
+        [{ shopId, customerId: customerId || null, sellerId, totalAmount, discount: discountAmount, memoId, feedbackToken, items: saleItems }],
+        { session }
+      )
 
-      // 6. Decrement stock + log StockMovement
       for (const { product, quantity } of productSnapshots) {
-        await tx.product.update({
-          where: { id: product.id },
-          data: { stockQty: { decrement: quantity } },
-        })
-        await tx.stockMovement.create({
-          data: {
-            productId: product.id,
-            changeQty: -quantity,
-            reason: 'sale',
-          },
-        })
+        await Product.findByIdAndUpdate(product._id, { $inc: { stockQty: -quantity } }, { session })
+        await StockMovement.create([{ productId: product._id, shopId, changeQty: -quantity, reason: `sale-${result._id}` }], { session })
       }
 
-      // 7. Return full sale
-      return tx.sale.findUnique({
-        where: { id: sale.id },
-        include: {
-          customer: true,
-          items: {
-            include: { product: true },
-          },
-        },
-      })
-    })
+      await session.commitTransaction()
+    } catch (err) {
+      await session.abortTransaction()
+      throw err
+    } finally {
+      session.endSession()
+    }
 
-    res.status(201).json({
-      success: true,
-      data: JSON.parse(JSON.stringify(result)),
-    })
+    const populated = await Sale.findById(result._id)
+      .populate('customerId', 'name phone email')
+      .populate('sellerId', 'name')
 
-    // Send memo email in background (don't block response)
-    if (result.customer && result.customer.email && process.env.GMAIL_USER) {
-      sendMemoEmail(result)
+    res.status(201).json({ success: true, data: populated })
+
+    // Background: link customer user
+    if (populated.customerId?.email) {
+      linkSaleToCustomerUser(result._id, populated.customerId.email).catch((err) =>
+        console.error('Failed to link customer user:', err.message)
+      )
+    }
+
+    // Background: send memo email
+    if (populated.customerId?.email && process.env.GMAIL_USER) {
+      sendMemoEmail(populated)
         .then((sent) => {
-          if (sent) {
-            prisma.sale.update({
-              where: { id: result.id },
-              data: { emailSent: true },
-            }).catch(err => console.error('Failed to update emailSent flag:', err))
-          }
+          if (sent) Sale.findByIdAndUpdate(result._id, { emailSent: true }).exec()
         })
-        .catch((err) => {
-          console.error('Background email send failed:', err.message)
-        })
+        .catch((err) => console.error('Background email send failed:', err.message))
     }
   } catch (err) {
     next(err)
@@ -122,32 +97,26 @@ const createSale = async (req, res, next) => {
 
 const getSales = async (req, res, next) => {
   try {
-    const where = {}
+    if (!req.user) return next({ status: 401, message: 'Not authenticated' })
+
+    const query = {}
+    if (req.user.role !== 'admin') query.shopId = req.user.shopId
 
     if (req.query.date) {
       const day = new Date(req.query.date)
       const nextDay = new Date(day)
       nextDay.setDate(nextDay.getDate() + 1)
-      where.createdAt = { gte: day, lt: nextDay }
+      query.createdAt = { $gte: day, $lt: nextDay }
     }
 
-    if (req.query.customerId) {
-      where.customerId = parseInt(req.query.customerId, 10)
-    }
+    if (req.query.customerId) query.customerId = req.query.customerId
 
-    const sales = await prisma.sale.findMany({
-      where,
-      include: {
-        customer: { select: { id: true, name: true } },
-        _count: { select: { items: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+    const sales = await Sale.find(query)
+      .populate('customerId', 'id name')
+      .select('-items -feedback -feedbackToken')
+      .sort({ createdAt: -1 })
 
-    res.status(200).json({
-      success: true,
-      data: JSON.parse(JSON.stringify(sales)),
-    })
+    res.status(200).json({ success: true, data: sales })
   } catch (err) {
     next(err)
   }
@@ -155,30 +124,18 @@ const getSales = async (req, res, next) => {
 
 const getSaleById = async (req, res, next) => {
   try {
-    const sale = await prisma.sale.findUnique({
-      where: { id: parseInt(req.params.id, 10) },
-      include: {
-        customer: true,
-        items: {
-          include: {
-            product: { select: { id: true, name: true, unit: true } },
-          },
-        },
-        feedback: true,
-      },
-    })
+    if (!req.user) return next({ status: 401, message: 'Not authenticated' })
 
-    if (!sale) {
-      return next({
-        status: 404,
-        message: 'Sale not found',
-      })
+    const sale = await Sale.findById(req.params.id)
+      .populate('customerId')
+      .populate('sellerId', 'id name')
+
+    if (!sale) return next({ status: 404, message: 'Sale not found' })
+    if (req.user.role !== 'admin' && sale.shopId.toString() !== req.user.shopId) {
+      return next({ status: 403, message: 'Access denied' })
     }
 
-    res.status(200).json({
-      success: true,
-      data: JSON.parse(JSON.stringify(sale)),
-    })
+    res.status(200).json({ success: true, data: sale })
   } catch (err) {
     next(err)
   }
@@ -186,27 +143,15 @@ const getSaleById = async (req, res, next) => {
 
 const getMemoPDF = async (req, res, next) => {
   try {
-    const sale = await prisma.sale.findUnique({
-      where: { id: parseInt(req.params.id, 10) },
-      include: {
-        customer: true,
-        items: {
-          include: {
-            product: { select: { id: true, name: true, unit: true } },
-          },
-        },
-      },
-    })
+    if (!req.user) return next({ status: 401, message: 'Not authenticated' })
 
-    if (!sale) {
-      return next({
-        status: 404,
-        message: 'Sale not found',
-      })
+    const sale = await Sale.findById(req.params.id).populate('customerId')
+    if (!sale) return next({ status: 404, message: 'Sale not found' })
+    if (req.user.role !== 'admin' && sale.shopId.toString() !== req.user.shopId) {
+      return next({ status: 403, message: 'Access denied' })
     }
 
-    const pdfBuffer = await generateMemoPDF(sale, process.env.SHOP_NAME || 'ASTRA')
-
+    const pdfBuffer = await generateMemoPDF(sale, process.env.SHOP_NAME || 'ZENO')
     res.contentType('application/pdf')
     res.setHeader('Content-Disposition', `inline; filename="${sale.memoId}.pdf"`)
     res.send(pdfBuffer)
@@ -217,45 +162,19 @@ const getMemoPDF = async (req, res, next) => {
 
 const resendMemoEmail = async (req, res, next) => {
   try {
-    const sale = await prisma.sale.findUnique({
-      where: { id: parseInt(req.params.id, 10) },
-      include: {
-        customer: true,
-        items: {
-          include: {
-            product: { select: { id: true, name: true, unit: true } },
-          },
-        },
-      },
-    })
+    if (!req.user) return next({ status: 401, message: 'Not authenticated' })
 
-    if (!sale) {
-      return next({
-        status: 404,
-        message: 'Sale not found',
-      })
+    const sale = await Sale.findById(req.params.id).populate('customerId')
+    if (!sale) return next({ status: 404, message: 'Sale not found' })
+    if (req.user.role !== 'admin' && sale.shopId.toString() !== req.user.shopId) {
+      return next({ status: 403, message: 'Access denied' })
     }
-
-    if (!sale.customer || !sale.customer.email) {
-      return next({
-        status: 400,
-        message: 'Customer has no email address',
-      })
-    }
+    if (!sale.customerId?.email) return next({ status: 400, message: 'Customer has no email address' })
 
     const sent = await sendMemoEmail(sale)
+    if (sent) await Sale.findByIdAndUpdate(sale._id, { emailSent: true })
 
-    if (sent) {
-      await prisma.sale.update({
-        where: { id: sale.id },
-        data: { emailSent: true },
-      })
-    }
-
-    res.status(200).json({
-      success: true,
-      message: sent ? 'Memo email sent successfully' : 'Failed to send memo email',
-    })
+    res.status(200).json({ success: true, message: sent ? 'Memo email sent successfully' : 'Failed to send memo email' })
   } catch (err) {
     next(err)
   }

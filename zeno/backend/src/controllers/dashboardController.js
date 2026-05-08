@@ -1,4 +1,6 @@
-import prisma from '../utils/prisma.js'
+import Sale from '../models/Sale.js'
+import Customer from '../models/Customer.js'
+import Product from '../models/Product.js'
 
 export const getDashboardSummary = async (req, res, next) => {
   try {
@@ -21,127 +23,84 @@ export const getDashboardSummary = async (req, res, next) => {
       lowStockProducts,
       lowRatingFeedback,
     ] = await Promise.all([
-      prisma.customer.count(),
+      Customer.countDocuments(),
 
-      prisma.sale.count(),
+      Sale.countDocuments(),
 
-      prisma.feedback.aggregate({
-        _avg: { rating: true },
-        _count: true,
-      }),
+      Sale.aggregate([
+        { $match: { feedback: { $exists: true, $ne: null } } },
+        { $group: { _id: null, avgRating: { $avg: '$feedback.rating' }, count: { $sum: 1 } } },
+      ]),
 
-      prisma.sale.aggregate({
-        _sum: { totalAmount: true },
-        where: { createdAt: { gte: today } },
-      }),
+      Sale.aggregate([
+        { $match: { createdAt: { $gte: today } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } },
+      ]),
 
-      prisma.sale.findMany({
-        where: { createdAt: { gte: thirtyDaysAgo } },
-        select: { createdAt: true, totalAmount: true },
-        orderBy: { createdAt: 'asc' },
-      }),
+      Sale.find({ createdAt: { $gte: thirtyDaysAgo } })
+        .select('createdAt totalAmount')
+        .sort({ createdAt: 1 }),
 
-      prisma.saleItem.groupBy({
-        by: ['productId'],
-        _sum: { quantity: true },
-        orderBy: { _sum: { quantity: 'desc' } },
-        take: 5,
-      }),
+      Sale.aggregate([
+        { $unwind: '$items' },
+        { $group: { _id: '$items.productId', totalQty: { $sum: '$items.quantity' }, name: { $first: '$items.productName' } } },
+        { $sort: { totalQty: -1 } },
+        { $limit: 5 },
+        { $project: { _id: 0, name: 1, qty_sold: '$totalQty' } },
+      ]),
 
-      prisma.sale.findMany({
-        take: 10,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          customer: { select: { id: true, name: true } },
-          _count: { select: { items: true } },
-        },
-      }),
+      Sale.find()
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .populate('customerId', 'name')
+        .select('memoId totalAmount customerId items createdAt'),
 
-      prisma.feedback.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          sale: {
-            select: {
-              id: true,
-              memoId: true,
-              customer: { select: { name: true } },
-            },
-          },
-        },
-      }),
+      Sale.find({ feedback: { $exists: true, $ne: null } })
+        .sort({ 'feedback.createdAt': -1 })
+        .limit(5)
+        .populate('customerId', 'name')
+        .select('memoId feedback customerId'),
 
-      prisma.$queryRaw`
-        SELECT id, name, stockQty, minStock
-        FROM products
-        WHERE stockQty <= minStock
-      `,
+      Product.find({ $expr: { $lte: ['$stockQty', '$minStock'] } })
+        .select('_id name stockQty minStock'),
 
-      prisma.feedback.findMany({
-        where: { createdAt: { gte: sevenDaysAgo }, rating: { lte: 2 } },
-        include: {
-          sale: {
-            select: {
-              memoId: true,
-              customer: { select: { name: true } },
-            },
-          },
-        },
-      }),
+      Sale.find({
+        'feedback.createdAt': { $gte: sevenDaysAgo },
+        'feedback.rating': { $lte: 2 },
+      })
+        .populate('customerId', 'name')
+        .select('memoId feedback customerId'),
     ])
 
     // Group sales by date for trend
     const salesByDate = {}
     salesLast30Days.forEach((sale) => {
       const dateKey = sale.createdAt.toISOString().split('T')[0]
-      if (!salesByDate[dateKey]) {
-        salesByDate[dateKey] = 0
-      }
-      salesByDate[dateKey] += Number(sale.totalAmount)
+      salesByDate[dateKey] = (salesByDate[dateKey] || 0) + Number(sale.totalAmount)
     })
-
     const trend = Object.entries(salesByDate).map(([date, total]) => ({
       date,
       total: Math.round(total * 100) / 100,
     }))
 
-    // Get product names for top products
-    const topProductIds = topProducts.map((p) => p.productId)
-    const topProductDetails = await prisma.product.findMany({
-      where: { id: { in: topProductIds } },
-      select: { id: true, name: true },
-    })
-
-    const topProductMap = Object.fromEntries(
-      topProductDetails.map((p) => [p.id, p.name])
-    )
-
-    const topProductsFormatted = topProducts.map((p) => ({
-      name: topProductMap[p.productId],
-      qty_sold: p._sum.quantity,
-    }))
-
-    const avgRating = feedbackData._avg.rating || 0
-
-    const todayRevenue = Math.round(
-      (Number(todaySalesData._sum?.totalAmount || 0) * 100) / 100 * 100
-    ) / 100
+    const avgRating = feedbackData[0]?.avgRating || 0
+    const todayRevenue = Math.round((todaySalesData[0]?.total || 0) * 100) / 100
 
     const recentSalesFormatted = recentSales.map((sale) => ({
-      id: sale.id,
+      id: sale._id.toString(),
       memoId: sale.memoId,
-      customer: sale.customer?.name || 'Walk-in',
-      items: sale._count.items,
+      customer: sale.customerId?.name || 'Walk-in',
+      items: sale.items.length,
       total: Math.round(Number(sale.totalAmount) * 100) / 100,
       date: sale.createdAt,
     }))
 
     const recentFeedbackFormatted = recentFeedback.map((fb) => ({
-      id: fb.id,
-      customer: fb.sale.customer?.name || 'Walk-in',
-      rating: fb.rating,
-      comment: fb.comment || 'No comment',
-      date: fb.createdAt,
+      id: fb._id.toString(),
+      customer: fb.customerId?.name || 'Walk-in',
+      rating: fb.feedback.rating,
+      comment: fb.feedback.comment || 'No comment',
+      date: fb.feedback.createdAt,
     }))
 
     res.json({
@@ -150,18 +109,18 @@ export const getDashboardSummary = async (req, res, next) => {
       avgRating: Math.round(avgRating * 100) / 100,
       todayRevenue,
       salesLast30Days: trend,
-      topProducts: topProductsFormatted,
+      topProducts,
       recentSales: recentSalesFormatted,
       recentFeedback: recentFeedbackFormatted,
       alerts: {
         lowStock: lowStockProducts,
         lowRatings: lowRatingFeedback.map((fb) => ({
-          id: fb.id,
-          customer: fb.sale.customer?.name || 'Walk-in',
-          memoId: fb.sale.memoId,
-          rating: fb.rating,
-          comment: fb.comment,
-          date: fb.createdAt,
+          id: fb._id.toString(),
+          customer: fb.customerId?.name || 'Walk-in',
+          memoId: fb.memoId,
+          rating: fb.feedback.rating,
+          comment: fb.feedback.comment,
+          date: fb.feedback.createdAt,
         })),
       },
     })

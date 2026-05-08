@@ -1,14 +1,12 @@
 {
-  "name": "astra-backend",
+  "name": "zeno-backend",
   "version": "1.0.0",
-  "description": "ASTRA Shop Management System - Backend API",
+  "description": "ZENO - Multi-tenant shop management SaaS backend",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "db:push": "prisma db push",
-    "db:generate": "prisma generate",
     "db:seed": "node scripts/seed.js"
   },
   "keywords": [
@@ -20,20 +18,27 @@
   "author": "ASTRA",
   "license": "MIT",
   "dependencies": {
-    "@prisma/client": "^5.8.0",
     "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
+    "crypto-js": "^4.2.0",
+    "dotenv": "^16.6.1",
     "exceljs": "^4.4.0",
     "express": "^4.18.2",
+    "express-rate-limit": "^8.5.1",
+    "express-session": "^1.19.0",
+    "firebase-admin": "^13.9.0",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.6.5",
+    "mongoose": "^8.3.0",
     "nodemailer": "^6.9.7",
+    "passport": "^0.7.0",
+    "passport-facebook": "^3.0.0",
+    "passport-google-oauth20": "^2.0.0",
+    "passport-linkedin-oauth2": "^2.0.0",
     "pdfkit": "^0.13.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2",
-    "prisma": "^5.8.0"
+    "nodemon": "^3.0.2"
   }
 }

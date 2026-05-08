@@ -1,0 +1,10 @@
+---
+import Layout from '../layouts/Layout.astro'
+import RegisterIsland from '../islands/RegisterIsland.jsx'
+
+const error = Astro.url.searchParams.get('error')
+---
+
+<Layout protect={false} title="Register">
+  <RegisterIsland client:load initialError={error} />
+</Layout>

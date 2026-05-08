@@ -1,8 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro'
 import LoginIsland from '../islands/LoginIsland.jsx'
+
+const error = Astro.url.searchParams.get('error')
 ---
 
 <Layout protect={false} title="Login">
-  <LoginIsland client:load />
+  <LoginIsland client:load initialError={error} />
 </Layout>

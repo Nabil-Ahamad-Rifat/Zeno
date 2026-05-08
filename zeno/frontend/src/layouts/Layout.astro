@@ -1,7 +1,7 @@
 ---
 import '../styles/index.css'
 
-const { title = 'ASTRA', protect = true } = Astro.props
+const { title = 'ZENO', protect = true } = Astro.props
 ---
 
 <!DOCTYPE html>
@@ -9,12 +9,12 @@ const { title = 'ASTRA', protect = true } = Astro.props
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width" />
-  <title>{title} — ASTRA</title>
+  <title>{title} — ZENO</title>
 </head>
 <body class="min-h-screen bg-gray-50">
   {protect && (
     <script>
-      if (!localStorage.getItem('token')) {
+      if (!localStorage.getItem('user')) {
         window.location.href = '/login'
       }
     </script>

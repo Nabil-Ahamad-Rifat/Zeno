@@ -1,12 +1,12 @@
 import { z } from 'zod'
 
 const saleSchema = z.object({
-  customerId: z.coerce.number().int().positive().optional(),
+  customerId: z.string().optional(),
   discount: z.coerce.number().nonnegative().optional().default(0),
   items: z
     .array(
       z.object({
-        productId: z.coerce.number().int().positive(),
+        productId: z.string(),
         quantity: z.coerce.number().int().positive(),
       })
     )

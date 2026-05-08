@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer'
 import { generateMemoPDF } from './memoService.js'
+import Shop from '../models/Shop.js'
 
 let transporter = null
 
@@ -25,13 +26,13 @@ export const sendMemoEmail = async (sale) => {
     }
 
     // Only send if customer has email
-    if (!sale.customer || !sale.customer.email) {
+    if (!sale.customerId || !sale.customerId.email) {
       console.log(`[Email] Skipping email for sale ${sale.memoId} - no customer email`)
       return false
     }
 
     // Generate PDF
-    const pdfBuffer = await generateMemoPDF(sale, process.env.SHOP_NAME || 'ASTRA')
+    const pdfBuffer = await generateMemoPDF(sale, process.env.SHOP_NAME || 'ZENO')
 
     // Construct feedback link
     const feedbackLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/feedback/${sale.feedbackToken}`
@@ -58,7 +59,7 @@ export const sendMemoEmail = async (sale) => {
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
           <!-- Header -->
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 20px; text-align: center; color: white;">
-            <h1 style="margin: 0; font-size: 28px; font-weight: bold;">${process.env.SHOP_NAME || 'ASTRA'}</h1>
+            <h1 style="margin: 0; font-size: 28px; font-weight: bold;">${process.env.SHOP_NAME || 'ZENO'}</h1>
             <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Purchase Receipt</p>
           </div>
 
@@ -93,7 +94,7 @@ export const sendMemoEmail = async (sale) => {
                     <strong>Customer:</strong>
                   </td>
                   <td style="padding: 8px 0; color: #333; font-size: 14px; text-align: right;">
-                    ${sale.customer?.name || 'Walk-in Customer'}
+                    ${sale.customerId?.name || 'Walk-in Customer'}
                   </td>
                 </tr>
               </table>
@@ -115,7 +116,7 @@ export const sendMemoEmail = async (sale) => {
                   .map(
                     (item) => `
                   <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding: 12px 8px; color: #333; font-size: 13px;">${item.product.name}</td>
+                    <td style="padding: 12px 8px; color: #333; font-size: 13px;">${item.productName}</td>
                     <td style="padding: 12px 8px; text-align: center; color: #333; font-size: 13px;">${item.quantity}</td>
                     <td style="padding: 12px 8px; text-align: right; color: #333; font-size: 13px;">৳${Number(item.unitPrice).toFixed(2)}</td>
                     <td style="padding: 12px 8px; text-align: right; color: #333; font-size: 13px; font-weight: 500;">৳${Number(item.subtotal).toFixed(2)}</td>
@@ -160,7 +161,7 @@ export const sendMemoEmail = async (sale) => {
               Thank you for shopping with us!
             </p>
             <p style="margin: 0; color: #999; font-size: 11px;">
-              ${process.env.SHOP_NAME || 'ASTRA'}<br/>
+              ${process.env.SHOP_NAME || 'ZENO'}<br/>
               Email: ${process.env.SHOP_EMAIL || 'shop@example.com'}
             </p>
           </div>
@@ -172,7 +173,7 @@ export const sendMemoEmail = async (sale) => {
     // Send email with PDF attachment
     await mailer.sendMail({
       from: process.env.GMAIL_USER,
-      to: sale.customer.email,
+      to: sale.customerId.email,
       subject: `Your Receipt - ${sale.memoId}`,
       html: htmlContent,
       attachments: [
@@ -184,10 +185,75 @@ export const sendMemoEmail = async (sale) => {
       ],
     })
 
-    console.log(`[Email] Sent memo email to ${sale.customer.email} for sale ${sale.memoId}`)
+    console.log(`[Email] Sent memo email to ${sale.customerId.email} for sale ${sale.memoId}`)
     return true
   } catch (error) {
     console.error(`[Email] Failed to send memo email for sale ${sale.memoId}:`, error.message)
+    return false
+  }
+}
+
+export const sendInvitationEmail = async (invitation, shopId) => {
+  try {
+    const mailer = getTransporter()
+    if (!mailer) {
+      console.log(`[Email] Skipping invitation email - Gmail credentials not configured`)
+      return false
+    }
+
+    const shop = await Shop.findById(shopId)
+
+    if (!shop) {
+      console.log(`[Email] Shop not found for invitation ${invitation.id}`)
+      return false
+    }
+
+    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invite/${invitation.token}`
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #0066cc; color: white; padding: 20px; border-radius: 5px 5px 0 0; }
+            .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; }
+            .button { display: inline-block; padding: 12px 24px; background: #0066cc; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>You've been invited to join ZENO</h1>
+            </div>
+            <div class="content">
+              <p>Hello,</p>
+              <p>You've been invited to join <strong>${shop.name}</strong> on ZENO Shop Management System as a seller.</p>
+              <p>Click the button below to accept this invitation and set up your account:</p>
+              <a href="${inviteLink}" class="button">Accept Invitation</a>
+              <p>Or copy this link: <a href="${inviteLink}">${inviteLink}</a></p>
+              <p>This invitation will expire in 7 days.</p>
+              <p>If you didn't expect this invitation, you can safely ignore this email.</p>
+              <hr>
+              <p style="color: #666; font-size: 12px;">ZENO Shop Management System</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `
+
+    await mailer.sendMail({
+      from: process.env.GMAIL_USER,
+      to: invitation.email,
+      subject: `Invitation to join ${shop.name} on ZENO`,
+      html: htmlContent,
+    })
+
+    console.log(`[Email] Sent invitation email to ${invitation.email} for shop ${shop.name}`)
+    return true
+  } catch (error) {
+    console.error(`[Email] Failed to send invitation email:`, error.message)
     return false
   }
 }

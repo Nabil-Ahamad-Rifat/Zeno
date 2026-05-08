@@ -55,11 +55,11 @@ export const generateMemoPDF = async (sale, shopName) => {
     doc.text(`Time: ${new Date(sale.createdAt).toLocaleTimeString()}`, col1X, doc.y, { width: contentWidth / 2 - 10 })
 
     const customerY = memoInfoY
-    if (sale.customer) {
-      doc.text(`Name: ${sale.customer.name}`, col2X, customerY, { width: contentWidth / 2 - 10 })
-      doc.text(`Phone: ${sale.customer.phone}`, col2X, doc.y, { width: contentWidth / 2 - 10 })
-      if (sale.customer.email) {
-        doc.text(`Email: ${sale.customer.email}`, col2X, doc.y, { width: contentWidth / 2 - 10 })
+    if (sale.customerId) {
+      doc.text(`Name: ${sale.customerId.name}`, col2X, customerY, { width: contentWidth / 2 - 10 })
+      doc.text(`Phone: ${sale.customerId.phone}`, col2X, doc.y, { width: contentWidth / 2 - 10 })
+      if (sale.customerId.email) {
+        doc.text(`Email: ${sale.customerId.email}`, col2X, doc.y, { width: contentWidth / 2 - 10 })
       }
     } else {
       doc.text('Name: Walk-in Customer', col2X, customerY, { width: contentWidth / 2 - 10 })
@@ -92,9 +92,9 @@ export const generateMemoPDF = async (sale, shopName) => {
     doc.font('Helvetica').fontSize(8)
     sale.items.forEach((item) => {
       const rowY = doc.y
-      const productName = String(item.product.name).substring(0, 40)
+      const productName = String(item.productName).substring(0, 40)
       doc.text(productName, tableX, rowY, { width: colWidths[0], height: 25, valign: 'center' })
-      doc.text(String(item.product.unit), tableX + colWidths[0], rowY, {
+      doc.text(String(item.productUnit || ''), tableX + colWidths[0], rowY, {
         width: colWidths[1],
         align: 'center',
         height: 25,

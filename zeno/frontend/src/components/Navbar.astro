@@ -1,6 +1,4 @@
 ---
-import { logout } from '../stores/auth.js'
-
 const links = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/customers', label: 'Customers' },
@@ -14,7 +12,7 @@ const current = Astro.url.pathname
 
 <nav class="bg-blue-600 text-white shadow-md">
   <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-    <h1 class="text-2xl font-bold">ASTRA</h1>
+    <h1 class="text-2xl font-bold tracking-wide">ZENO</h1>
     <div class="flex items-center gap-1">
       {links.map(link => (
         <a
@@ -31,16 +29,14 @@ const current = Astro.url.pathname
     </div>
     <button
       id="logout-btn"
-      class="px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded text-sm"
+      class="px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded text-sm font-medium"
     >
       Logout
     </button>
   </div>
 </nav>
 
-<script define:vars={{ logout }}>
-  document.getElementById('logout-btn').addEventListener('click', () => {
-    localStorage.removeItem('token')
-    window.location.href = '/login'
-  })
+<script>
+  import { logout } from '../stores/auth.js'
+  document.getElementById('logout-btn').addEventListener('click', logout)
 </script>

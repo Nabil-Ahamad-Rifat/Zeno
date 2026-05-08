@@ -1,53 +1,67 @@
-# ASTRA - Shop Management System
+# ZENO - Multi-Tenant Shop Management SaaS
 
-A comprehensive small shop management system built with Node.js, React, and MySQL. Manage customers, inventory, sales (POS), email receipts, customer feedback, and live dashboards with charts.
+A complete role-based shop management platform with authentication, dashboards, and e-commerce features built with React, Express.js, and MySQL.
 
-## 📋 Project Overview
+## 🎯 Key Features
 
-ASTRA handles:
-- **Customer Management** - CRUD operations with customer tags (regular/VIP/new)
-- **Product/Inventory** - Stock tracking with expiry dates and minimum stock alerts
-- **Sales (POS)** - Multi-item transactions with automatic stock reduction
-- **Email Memos** - PDF receipts sent via Gmail SMTP
-- **Customer Feedback** - Public feedback page with unique tokens and ratings
-- **Live Dashboard** - Real-time charts, cards, alerts, and activity logs
-- **Reports** - Daily/weekly/monthly analytics with PDF/Excel export
+✅ **Multi-Role Authentication** - Admin, Shopkeeper, Seller, Customer  
+✅ **JWT Authentication** - Secure token-based sessions  
+✅ **Role-Based Dashboards** - Custom interface for each user role  
+✅ **Admin Dashboard** - Platform overview and user management  
+✅ **Shop Dashboard** - Sales metrics and customer insights  
+✅ **POS Interface** - Fast checkout with shopping cart  
+✅ **Customer Portal** - Purchase history and ratings  
+✅ **Security** - bcrypt passwords, rate limiting, CORS
+
+## 🚀 Quick Start
+
+```bash
+# Install all dependencies
+npm run install:all
+
+# Start all services
+npm run dev
+
+# Or start individually:
+npm run dev:backend    # Backend API (port 4000)
+npm run dev:frontend   # Frontend App (port 5173)
+npm run dev:marketing  # Marketing Site (port 5178)
+```
 
 ## 🏗️ Project Structure
 
 ```
-astra/
-├── backend/                 # Express.js API server
+zeno/
+├── backend/                 # Express.js API
 │   ├── src/
-│   │   ├── index.js        # Entry point
-│   │   ├── routes/         # API routes
-│   │   ├── controllers/    # Request handlers
-│   │   ├── models/         # Prisma models
-│   │   ├── middleware/     # Auth, validation, error handling
-│   │   ├── services/       # Business logic
-│   │   └── utils/          # Helper functions
-│   ├── scripts/
-│   │   └── seed.js         # Database seeding
-│   ├── package.json
-│   └── .env.example
+│   │   ├── controllers/    # Auth & business logic
+│   │   ├── services/       # Database operations
+│   │   ├── middleware/     # Auth, validation, errors
+│   │   ├── routes/         # API endpoints
+│   │   └── server.js       # Express app
+│   ├── prisma/
+│   │   ├── schema.prisma   # Database schema
+│   │   └── seed.js         # Seed data
+│   ├── .env                # Configuration
+│   └── package.json
 │
-├── frontend/               # React + Vite app
+├── frontend/               # React dashboard
 │   ├── src/
-│   │   ├── main.jsx       # Entry point
-│   │   ├── App.jsx        # Root component
-│   │   ├── pages/         # Page components
-│   │   ├── components/    # Reusable components
-│   │   ├── services/      # API calls
-│   │   ├── hooks/         # Custom React hooks
-│   │   ├── context/       # React Context for state
-│   │   ├── styles/        # Global styles
-│   │   └── utils/         # Helper functions
-│   ├── public/            # Static assets
-│   ├── index.html
+│   │   ├── components/     # UI components & layouts
+│   │   ├── pages/          # Role dashboards
+│   │   ├── hooks/          # useAuth hook
+│   │   ├── routes/         # Route configuration
+│   │   └── App.jsx         # Main app
 │   ├── vite.config.js
 │   ├── tailwind.config.js
-│   ├── package.json
-│   └── .env.example
+│   └── package.json
+│
+└── marketing/              # Public landing site
+    ├── src/
+    │   ├── pages/          # Landing, features, pricing
+    │   ├── components/     # UI components
+    │   └── layouts/        # Page templates
+    └── vite.config.js
 │
 ├── database/              # Prisma schema & migrations
 │   ├── prisma/
