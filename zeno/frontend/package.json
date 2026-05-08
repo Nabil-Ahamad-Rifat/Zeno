@@ -7,8 +7,11 @@
     "preview": "astro preview"
   },
   "dependencies": {
+    "@astrojs/markdoc": "^0.10.0",
     "@astrojs/react": "^3.0.0",
     "@astrojs/tailwind": "^5.0.0",
+    "@keystatic/astro": "^5.0.6",
+    "@keystatic/core": "^0.5.50",
     "@nanostores/react": "^0.7.0",
     "astro": "^4.0.0",
     "axios": "^1.6.2",

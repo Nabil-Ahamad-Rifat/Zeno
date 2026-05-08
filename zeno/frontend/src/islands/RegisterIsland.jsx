@@ -183,9 +183,14 @@ const RegisterIsland = ({ initialError }) => {
 
         <p className="text-sm text-center text-gray-500 mt-6">
           Already have an account?{' '}
-          <a href="/login" className="text-blue-600 hover:underline font-medium">
-            Sign in
-          </a>
+          <a href="/login" className="text-blue-600 hover:underline font-medium">Sign in</a>
+        </p>
+
+        <p className="text-xs text-center text-gray-400 mt-4">
+          By creating an account you agree to our{' '}
+          <a href="/terms" className="hover:underline">Terms of Service</a>
+          {' '}&middot;{' '}
+          <a href="/privacy" className="hover:underline">Privacy Policy</a>
         </p>
       </div>
     </div>

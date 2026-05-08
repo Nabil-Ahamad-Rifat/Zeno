@@ -1,5 +1,6 @@
 ---
 import '../styles/index.css'
+import Footer from '../components/Footer.astro'
 
 const { title = 'ZENO', protect = true } = Astro.props
 ---
@@ -11,7 +12,7 @@ const { title = 'ZENO', protect = true } = Astro.props
   <meta name="viewport" content="width=device-width" />
   <title>{title} — ZENO</title>
 </head>
-<body class="min-h-screen bg-gray-50">
+<body class="min-h-screen bg-gray-50 flex flex-col">
   {protect && (
     <script>
       if (!localStorage.getItem('user')) {
@@ -19,6 +20,9 @@ const { title = 'ZENO', protect = true } = Astro.props
       }
     </script>
   )}
-  <slot />
+  <div class="flex-1">
+    <slot />
+  </div>
+  <Footer />
 </body>
 </html>

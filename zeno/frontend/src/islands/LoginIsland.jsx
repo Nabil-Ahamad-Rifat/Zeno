@@ -155,6 +155,13 @@ const LoginIsland = ({ initialError, successMessage }) => {
           Don't have an account?{' '}
           <a href="/register" className="text-blue-600 hover:underline font-medium">Register</a>
         </p>
+
+        <p className="text-xs text-center text-gray-400 mt-4">
+          By signing in you agree to our{' '}
+          <a href="/terms" className="hover:underline">Terms of Service</a>
+          {' '}&middot;{' '}
+          <a href="/privacy" className="hover:underline">Privacy Policy</a>
+        </p>
       </div>
     </div>
   )

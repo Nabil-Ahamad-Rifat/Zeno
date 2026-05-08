@@ -1,0 +1,60 @@
+---
+const year = new Date().getFullYear()
+---
+
+<footer class="bg-gray-900 text-gray-400 mt-auto">
+  <div class="max-w-7xl mx-auto px-6 py-10">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+      <!-- Brand -->
+      <div>
+        <h2 class="text-white text-xl font-bold tracking-wide mb-2">ZENO</h2>
+        <p class="text-sm text-gray-400 leading-relaxed max-w-xs">
+          Multi-tenant shop management system. Manage inventory, sales, and customers from one place.
+        </p>
+        <p class="text-xs text-gray-600 mt-4">&copy; {year} ZENO. All rights reserved.</p>
+      </div>
+
+      <!-- Company -->
+      <div>
+        <h3 class="text-white text-sm font-semibold uppercase tracking-wider mb-4">Company</h3>
+        <ul class="space-y-2 text-sm">
+          <li>
+            <a href="/about" class="hover:text-white transition-colors">About Us</a>
+          </li>
+          <li>
+            <a href="mailto:support@zeno.com" class="hover:text-white transition-colors">Contact Support</a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Legal -->
+      <div>
+        <h3 class="text-white text-sm font-semibold uppercase tracking-wider mb-4">Legal</h3>
+        <ul class="space-y-2 text-sm">
+          <li>
+            <a href="/terms" class="hover:text-white transition-colors">Terms of Service</a>
+          </li>
+          <li>
+            <a href="/privacy" class="hover:text-white transition-colors">Privacy Policy</a>
+          </li>
+          <li>
+            <a href="/refund" class="hover:text-white transition-colors">Refund Policy</a>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="border-t border-gray-800 mt-8 pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
+      <p class="text-xs text-gray-600">Built with care for small businesses everywhere.</p>
+      <div class="flex items-center gap-4 text-xs text-gray-600">
+        <a href="/terms" class="hover:text-gray-400 transition-colors">Terms</a>
+        <span>&middot;</span>
+        <a href="/privacy" class="hover:text-gray-400 transition-colors">Privacy</a>
+        <span>&middot;</span>
+        <a href="/refund" class="hover:text-gray-400 transition-colors">Refund</a>
+      </div>
+    </div>
+  </div>
+</footer>
