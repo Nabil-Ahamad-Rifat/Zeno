@@ -24,8 +24,7 @@ const RegisterIsland = ({ initialError }) => {
         password: form.password,
         role: form.role,
       })
-      setUser(res.data.user)
-      window.location.href = '/dashboard'
+      window.location.href = '/login?registered=1'
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.')
     } finally {

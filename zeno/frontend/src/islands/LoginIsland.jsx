@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { setUser } from '../stores/auth.js'
 import api from '../services/api.js'
 
-const LoginIsland = ({ initialError }) => {
+const LoginIsland = ({ initialError, successMessage }) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(initialError || '')
@@ -60,6 +60,12 @@ const LoginIsland = ({ initialError }) => {
       <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full">
         <h1 className="text-3xl font-bold mb-2 text-center text-blue-600">ZENO</h1>
         <p className="text-gray-500 text-center mb-8">Shop Management System</p>
+
+        {successMessage && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded text-sm">
+            {successMessage}
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded text-sm">

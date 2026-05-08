@@ -3,8 +3,9 @@ import Layout from '../layouts/Layout.astro'
 import LoginIsland from '../islands/LoginIsland.jsx'
 
 const error = Astro.url.searchParams.get('error')
+const registered = Astro.url.searchParams.get('registered')
 ---
 
 <Layout protect={false} title="Login">
-  <LoginIsland client:load initialError={error} />
+  <LoginIsland client:load initialError={error} successMessage={registered ? 'Account created! Please sign in.' : null} />
 </Layout>
