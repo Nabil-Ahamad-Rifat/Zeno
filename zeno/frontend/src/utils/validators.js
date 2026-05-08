@@ -30,5 +30,5 @@ export const productSchema = z.object({
     .nonnegative('Minimum stock cannot be negative')
     .optional()
     .default(0),
-  expiryDate: z.coerce.date().optional().or(z.literal('')),
+  expiryDate: z.union([z.coerce.date(), z.literal(''), z.undefined()]).transform(v => v === '' ? undefined : v).optional(),
 })

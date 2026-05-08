@@ -3,11 +3,13 @@ import Product from '../models/Product.js'
 const createProduct = async (req, res, next) => {
   try {
     if (!req.user) return next({ status: 401, message: 'Not authenticated' })
-    if (req.user.role === 'shopkeeper' && !req.user.shopId) return next({ status: 403, message: 'SHOP_REQUIRED' })
+
+    const shopId = req.user.shopId || req.body.shopId
+    if (!shopId) return next({ status: 403, message: 'No shop associated with your account. Log in as a shopkeeper.' })
 
     const product = await Product.create({
       ...req.body,
-      shopId: req.user.shopId || req.body.shopId,
+      shopId,
     })
     res.status(201).json({ success: true, data: product })
   } catch (err) {

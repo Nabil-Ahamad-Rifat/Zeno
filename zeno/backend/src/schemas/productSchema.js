@@ -8,7 +8,7 @@ const productSchema = z.object({
   costPrice: z.coerce.number().positive('Cost price must be positive'),
   stockQty: z.coerce.number().int().nonnegative('Stock quantity cannot be negative').optional(),
   minStock: z.coerce.number().int().nonnegative('Minimum stock cannot be negative').optional(),
-  expiryDate: z.coerce.date().optional().or(z.literal('')),
+  expiryDate: z.union([z.coerce.date(), z.literal(''), z.undefined()]).transform(v => v === '' ? undefined : v).optional(),
 })
 
 export default productSchema

@@ -90,11 +90,14 @@ const ProductsIsland = () => {
         return
       }
 
+      const payload = { ...result.data }
+      if (!payload.expiryDate) delete payload.expiryDate
+
       if (isEdit) {
-        await productService.updateProduct(editingProduct.id, result.data)
+        await productService.updateProduct(editingProduct.id, payload)
         setShowEditModal(false)
       } else {
-        await productService.createProduct(result.data)
+        await productService.createProduct(payload)
         setShowAddModal(false)
       }
 
@@ -110,7 +113,8 @@ const ProductsIsland = () => {
         expiryDate: '',
       })
     } catch (err) {
-      setError('Failed to save product')
+      const msg = err.response?.data?.errors?.[0] || err.response?.data?.error || 'Failed to save product'
+      setError(msg)
     }
   }
 

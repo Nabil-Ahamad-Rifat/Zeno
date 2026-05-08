@@ -10,7 +10,7 @@ export const requireAuth = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
 
-    const user = await User.findById(decoded.userId).select('_id status role')
+    const user = await User.findById(decoded.userId).select('_id status role shopId')
     if (!user) {
       res.clearCookie('auth_token')
       return next({ status: 401, message: 'User not found' })
@@ -21,7 +21,7 @@ export const requireAuth = async (req, res, next) => {
       return next({ status: 401, message: 'Account is no longer active' })
     }
 
-    req.user = decoded
+    req.user = { ...decoded, shopId: user.shopId?.toString() ?? null }
     next()
   } catch (err) {
     next(err)
