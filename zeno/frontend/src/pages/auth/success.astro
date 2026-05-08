@@ -13,15 +13,18 @@ import Layout from '../../layouts/Layout.astro'
       .then(r => r.json())
       .then(data => {
         if (data.success && data.user) {
+          const dest = (data.user.role === 'shopkeeper' && !data.user.shopId)
+            ? '/onboarding'
+            : '/dashboard'
           if (window.opener) {
             window.opener.postMessage(
-              { type: 'oauth-success', user: data.user },
+              { type: 'oauth-success', user: data.user, redirect: dest },
               window.location.origin
             )
             window.close()
           } else {
             localStorage.setItem('user', JSON.stringify(data.user))
-            window.location.href = '/dashboard'
+            window.location.href = dest
           }
         } else {
           if (window.opener) {

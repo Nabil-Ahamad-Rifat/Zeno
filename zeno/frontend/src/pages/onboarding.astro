@@ -1,0 +1,18 @@
+---
+import Layout from '../layouts/Layout.astro'
+import OnboardingIsland from '../islands/OnboardingIsland.jsx'
+---
+
+<Layout protect={false} title="Set Up Your Shop">
+  <script>
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    if (!user) {
+      window.location.href = '/login'
+    } else if (user.role !== 'shopkeeper') {
+      window.location.href = '/dashboard'
+    } else if (user.shopId) {
+      window.location.href = '/dashboard'
+    }
+  </script>
+  <OnboardingIsland client:load />
+</Layout>
